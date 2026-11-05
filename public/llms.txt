@@ -1,0 +1,26 @@
+# OMX
+
+> Non-custodial Hyperliquid execution for AI agents: mandate checks, unsigned orders, verifiable receipts
+
+OMX turns an agent's order intent into Hyperliquid orders that pass an operator-set Agent Trading Mandate (coin allowlist, notional caps counting resting orders, leverage, daily loss excluding deposits, price band, data freshness, child size, kill switch, human-approval threshold, builder fee disclosure). Keys never leave the user's wallet. Local OMX enforces the mandate and writes a hash-chained audit log; the remote MCP path is a convenience whose controls are advisory because the agent signs. OMX gives no trade direction, signals or profit claims. Orders built through OMX carry a disclosed Hyperliquid builder fee that the user's main wallet must approve.
+
+- MCP (streamable HTTP): https://omx.invalid/mcp
+- Pre-Trade API: POST https://omx.invalid/v1/pretrade/quote (x402, 0.01 USD per quote)
+
+## Docs
+
+- [Agent Trading Mandate v0](https://omx.invalid/spec/agent-trading-mandate-v0.md): Mandate, execution receipt and receipt verification
+- [Pre-Trade API (OpenAPI 3.1)](https://omx.invalid/openapi.json): x402-paid remote quote; free when computed by local OMX
+
+## Tools
+
+- [omx_pretrade_quote](https://omx.invalid/mcp): Quantitative comparison of execution styles (market, limit, TWAP, POV, chase) for one order: expected cost in bps, fill probability, time to fill, and an omx_intent ready for OMX. No direction or profit advice.
+- [omx_mandate_check](https://omx.invalid/mcp): Evaluate an Agent Trading Mandate (atm/0) against one order and return each control's decision.
+- [omx_build_order](https://omx.invalid/mcp): Mandate check, then an unsigned Hyperliquid order with a disclosed builder fee and expiresAfter, plus the EIP-712 typed data the agent's own wallet signs.
+- [omx_submit_signed](https://omx.invalid/mcp): Assemble the Hyperliquid /exchange payload from the agent's signature and check the signer.
+
+## Optional
+
+- [x402 manifest](https://omx.invalid/.well-known/x402): payment requirements for the Pre-Trade API
+- [A2A agent card](https://omx.invalid/.well-known/agent-card.json): skills for agent-to-agent discovery
+- [MCP server card](https://omx.invalid/server.json): MCP Registry entry

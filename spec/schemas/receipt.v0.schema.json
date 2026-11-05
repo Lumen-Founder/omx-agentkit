@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omx.invalid/spec/schemas/receipt.v0.schema.json",
+  "title": "Agent Trading Execution Receipt v0",
+  "description": "Unsigned per-intent receipt: a deterministic projection of the intent's records in a hash-chained audit log, plus the hashes that pin them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["receipt_version", "intent_id", "venue", "network", "account", "mandate_hash", "mandate_binding",
+               "audit", "status", "decisions", "orders", "fills", "totals", "timestamps", "created_ms", "receipt_hash"],
+  "properties": {
+    "receipt_version": {"const": "atm-receipt/0"},
+    "intent_id": {"type": "string", "minLength": 1, "maxLength": 80},
+    "venue": {"const": "hyperliquid"},
+    "network": {"enum": ["mainnet", "testnet"]},
+    "account": {"$ref": "#/$defs/address"},
+    "mandate_hash": {"$ref": "#/$defs/h256"},
+    "mandate_binding": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["mode"], "properties": {"mode": {"const": "asserted"}}},
+        {"type": "object", "additionalProperties": false, "required": ["mode", "line", "hash"],
+         "properties": {"mode": {"const": "audit_record"}, "line": {"$ref": "#/$defs/line"}, "hash": {"$ref": "#/$defs/h256"}}}
+      ]
+    },
+    "audit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["hash_alg", "genesis", "start", "end", "head_at_creation", "records"],
+      "properties": {
+        "hash_alg": {"const": "sha256"},
+        "genesis": {"const": "0000000000000000000000000000000000000000000000000000000000000000"},
+        "start": {"type": "object", "additionalProperties": false, "required": ["line", "prev", "hash"],
+                  "properties": {"line": {"$ref": "#/$defs/line"}, "prev": {"$ref": "#/$defs/h256"}, "hash": {"$ref": "#/$defs/h256"}}},
+        "end": {"$ref": "#/$defs/point"},
+        "head_at_creation": {"$ref": "#/$defs/point"},
+        "records": {"type": "array", "minItems": 1, "items": {
+          "type": "object", "additionalProperties": false, "required": ["line", "kind", "hash"],
+          "properties": {"line": {"$ref": "#/$defs/line"}, "kind": {"type": "string"}, "hash": {"$ref": "#/$defs/h256"}}}}
+      }
+    },
+    "status": {"enum": ["partial", "final"]},
+    "decisions": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false, "required": ["line", "child_id", "allow", "reasons", "controls"],
+      "properties": {
+        "line": {"$ref": "#/$defs/line"}, "child_id": {"type": ["string", "null"]}, "allow": {"type": "boolean"},
+        "reasons": {"type": "array", "items": {"type": "string"}},
+        "controls": {"type": "object", "additionalProperties": {
+          "type": "object", "required": ["pass"], "properties": {"pass": {"type": "boolean"}, "value": {}}}}
+      }}},
+    "orders": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["child_id", "cloid", "coin", "side", "size", "px", "tif", "reduce_only", "builder",
+                   "decision_line", "sent_line", "sent_ms", "resend", "oid"],
+      "properties": {
+        "child_id": {"type": ["string", "null"]},
+        "cloid": {"type": ["string", "null"], "pattern": "^0x[0-9a-f]{32}$"},
+        "coin": {"type": ["string", "null"]}, "side": {"type": ["string", "null"]},
+        "size": {"type": ["number", "null"]}, "px": {"type": ["number", "null"]}, "tif": {"type": ["string", "null"]},
+        "reduce_only": {"type": "boolean"},
+        "builder": {"oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["b", "f"],
+                    "properties": {"b": {"$ref": "#/$defs/address"}, "f": {"type": "integer", "minimum": 0}}}]},
+        "decision_line": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/line"}]},
+        "sent_line": {"$ref": "#/$defs/line"}, "sent_ms": {"type": ["integer", "null"]},
+        "resend": {"type": "boolean"}, "oid": {"type": ["string", "null"]}
+      }}},
+    "fills": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["line", "child_id", "fill_id", "side", "size", "px", "venue_fee_usd", "builder_fee_usd", "ts_ms", "crossed"],
+      "properties": {
+        "line": {"$ref": "#/$defs/line"}, "child_id": {"type": ["string", "null"]}, "fill_id": {"type": ["string", "null"]},
+        "side": {"type": ["string", "null"]}, "size": {"type": ["number", "null"]}, "px": {"type": ["number", "null"]},
+        "venue_fee_usd": {"type": "number", "description": "Exchange fee; negative = rebate."},
+        "builder_fee_usd": {"type": "number", "minimum": 0}, "ts_ms": {"type": ["integer", "null"]},
+        "crossed": {"type": ["boolean", "null"]}
+      }}},
+    "totals": {"type": "object", "additionalProperties": false,
+               "required": ["filled_size", "filled_notional_usd", "venue_fee_usd", "builder_fee_usd"],
+               "properties": {"filled_size": {"type": "number"}, "filled_notional_usd": {"type": "number"},
+                              "venue_fee_usd": {"type": "number"}, "builder_fee_usd": {"type": "number"}}},
+    "timestamps": {"type": "object", "additionalProperties": false,
+                   "required": ["intent_received_ms", "first_sent_ms", "last_fill_ms", "intent_done_ms"],
+                   "properties": {"intent_received_ms": {"type": ["integer", "null"]}, "first_sent_ms": {"type": ["integer", "null"]},
+                                  "last_fill_ms": {"type": ["integer", "null"]}, "intent_done_ms": {"type": ["integer", "null"]}}},
+    "created_ms": {"type": "integer"},
+    "receipt_hash": {"$ref": "#/$defs/h256"}
+  },
+  "$defs": {
+    "address": {"type": "string", "pattern": "^0x[0-9a-f]{40}$"},
+    "h256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "line": {"type": "integer", "minimum": 1},
+    "point": {"type": "object", "additionalProperties": false, "required": ["line", "hash"],
+              "properties": {"line": {"$ref": "#/$defs/line"}, "hash": {"$ref": "#/$defs/h256"}}}
+  }
+}

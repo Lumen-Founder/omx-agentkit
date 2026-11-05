@@ -1,0 +1,69 @@
+# Single metadata source for every discovery file in public/ (python -m agentkit.discovery).
+# Placeholders: the domain (.invalid), the MCP namespace and payTo are NOT real. Nothing is deployed
+# or published; replace them only when the user has a domain, a registry namespace and a pay-to wallet.
+
+[product]
+name = "OMX"
+title = "OMX: non-custodial Hyperliquid execution for AI agents"
+version = "0.0.1"
+summary = "Non-custodial Hyperliquid execution for AI agents: mandate checks, unsigned orders, verifiable receipts"
+mcp_description = "Non-custodial Hyperliquid execution: mandate checks, unsigned orders, receipts"
+details = """OMX turns an agent's order intent into Hyperliquid orders that pass an operator-set Agent Trading Mandate (coin allowlist, notional caps counting resting orders, leverage, daily loss excluding deposits, price band, data freshness, child size, kill switch, human-approval threshold, builder fee disclosure). Keys never leave the user's wallet. Local OMX enforces the mandate and writes a hash-chained audit log; the remote MCP path is a convenience whose controls are advisory because the agent signs. OMX gives no trade direction, signals or profit claims. Orders built through OMX carry a disclosed Hyperliquid builder fee that the user's main wallet must approve."""
+organization = "OMX"
+base_url = "https://omx.invalid"
+updated = "2026-11-05T00:00:00Z"
+
+[mcp]
+registry_name = "invalid.omx/agentkit"
+path = "/mcp"
+
+[a2a]
+path = "/a2a"
+protocol_binding = "HTTP+JSON"
+protocol_version = "1.0"
+
+[pretrade]
+path = "/v1/pretrade/quote"
+price_usd = "0.01"
+scheme = "exact"
+network = "eip155:8453"                                   # Base mainnet (CAIP-2)
+asset = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"      # USDC on Base
+asset_decimals = 6
+asset_name = "USD Coin"
+asset_version = "2"
+pay_to = "UNSET-NOT-DEPLOYED"                              # no wallet configured: nothing can be paid
+max_timeout_seconds = 60
+
+[[tools]]
+name = "omx_pretrade_quote"
+title = "Pre-trade quote"
+description = "Quantitative comparison of execution styles (market, limit, TWAP, POV, chase) for one order: expected cost in bps, fill probability, time to fill, and an omx_intent ready for OMX. No direction or profit advice."
+tags = ["hyperliquid", "execution", "tca"]
+
+[[tools]]
+name = "omx_mandate_check"
+title = "Mandate check"
+description = "Evaluate an Agent Trading Mandate (atm/0) against one order and return each control's decision."
+tags = ["risk", "mandate", "compliance"]
+
+[[tools]]
+name = "omx_build_order"
+title = "Build unsigned order"
+description = "Mandate check, then an unsigned Hyperliquid order with a disclosed builder fee and expiresAfter, plus the EIP-712 typed data the agent's own wallet signs."
+tags = ["hyperliquid", "eip712", "non-custodial"]
+
+[[tools]]
+name = "omx_submit_signed"
+title = "Assemble signed order"
+description = "Assemble the Hyperliquid /exchange payload from the agent's signature and check the signer."
+tags = ["hyperliquid", "non-custodial"]
+
+[[docs]]
+title = "Agent Trading Mandate v0"
+path = "/spec/agent-trading-mandate-v0.md"
+note = "Mandate, execution receipt and receipt verification"
+
+[[docs]]
+title = "Pre-Trade API (OpenAPI 3.1)"
+path = "/openapi.json"
+note = "x402-paid remote quote; free when computed by local OMX"

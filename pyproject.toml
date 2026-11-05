@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]                 # 77+: PEP 639 SPDX license string
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omx-agentkit"
+version = "0.0.1"
+description = "Agent Trading Mandate spec, unsigned Hyperliquid order builder, remote non-custodial MCP skeleton, signer adapters, discovery files"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = ["hyperliquid-python-sdk==0.20.0", "eth-account>=0.13", "msgpack>=1.0", "jsonschema>=4.20", "mcp==2.3.0"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["agentkit*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

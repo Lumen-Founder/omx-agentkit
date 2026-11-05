@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Derived by hand from the REQUIRED field_behavior annotations of message AgentCard, AgentInterface, AgentProvider, AgentCapabilities and AgentSkill in https://raw.githubusercontent.com/a2aproject/A2A/main/specification/a2a.proto (repo HEAD 4735f4876449c6f381825d8a841b31b16c6ad0c4, read 2026-11-05; vendored as vendor/specs/a2a.proto). JSON names are the proto3 JSON (lowerCamelCase) forms. A2A 1.0 publishes no committed JSON Schema (specification/json holds only a README).",
+  "title": "A2A AgentCard (1.0, required fields)",
+  "type": "object",
+  "required": ["name", "description", "supportedInterfaces", "version", "capabilities", "defaultInputModes", "defaultOutputModes", "skills"],
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "description": {"type": "string", "minLength": 1},
+    "supportedInterfaces": {"type": "array", "minItems": 1, "items": {
+      "type": "object", "required": ["url", "protocolBinding", "protocolVersion"],
+      "properties": {"url": {"type": "string", "format": "uri"}, "protocolBinding": {"type": "string", "minLength": 1},
+                     "tenant": {"type": "string"}, "protocolVersion": {"type": "string", "minLength": 1}}}},
+    "provider": {"type": "object", "required": ["url", "organization"],
+                 "properties": {"url": {"type": "string", "format": "uri"}, "organization": {"type": "string"}}},
+    "version": {"type": "string", "minLength": 1},
+    "documentationUrl": {"type": "string", "format": "uri"},
+    "capabilities": {"type": "object", "properties": {
+      "streaming": {"type": "boolean"}, "pushNotifications": {"type": "boolean"},
+      "extensions": {"type": "array"}, "extendedAgentCard": {"type": "boolean"}}},
+    "securitySchemes": {"type": "object"},
+    "securityRequirements": {"type": "array"},
+    "defaultInputModes": {"type": "array", "items": {"type": "string"}},
+    "defaultOutputModes": {"type": "array", "items": {"type": "string"}},
+    "skills": {"type": "array", "items": {
+      "type": "object", "required": ["id", "name", "description", "tags"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "name": {"type": "string"}, "description": {"type": "string"},
+                     "tags": {"type": "array", "items": {"type": "string"}}, "examples": {"type": "array", "items": {"type": "string"}},
+                     "inputModes": {"type": "array", "items": {"type": "string"}}, "outputModes": {"type": "array", "items": {"type": "string"}}}}},
+    "signatures": {"type": "array"},
+    "iconUrl": {"type": "string", "format": "uri"}
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "mandate_version": "atm/0",
+  "mandate_id": "test-mandate-1",
+  "issued_at": "2025-11-01T00:00:00Z",
+  "expires_at": "2026-11-01T00:00:00Z",
+  "operator": {
+    "name": "test operator"
+  },
+  "venue": "hyperliquid",
+  "network": "testnet",
+  "account": "0xa0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+  "agents": [
+    "agent:test"
+  ],
+  "coins": {
+    "allowed": [
+      "BTC",
+      "ETH"
+    ]
+  },
+  "notional": {
+    "per_coin_usd": {
+      "BTC": 8000
+    },
+    "default_per_coin_usd": 5000,
+    "account_usd": 12000,
+    "count_resting_orders": true
+  },
+  "leverage": {
+    "max": 3.0
+  },
+  "daily_loss": {
+    "max_usd": 200,
+    "excludes_external_flows": true,
+    "day_boundary": "UTC"
+  },
+  "price_band": {
+    "max_bps_vs_mid": 100
+  },
+  "data_freshness": {
+    "max_age_ms": 3000
+  },
+  "child_order": {
+    "max_notional_usd": 2000
+  },
+  "kill_switch": {
+    "engaged": false,
+    "clear_requires": "human"
+  },
+  "human_approval": {
+    "above_notional_usd": 1500
+  },
+  "builder_fee": {
+    "accepted": true,
+    "builder": "0xb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+    "max_tenths_bps": 10,
+    "disclosure": "1 bps builder fee per fill, approved by the user's main wallet"
+  },
+  "order_expiry": {
+    "max_ms": 60000
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "No official x402 /.well-known/x402 format exists in coinbase/x402 specs (checked 2026-11-05 at HEAD 0e6e8c55d86b4f14234fb6e49a4052074fb93e57: x402-specification-v2.md and extensions/bazaar.md define discovery as GET /discovery/resources). This schema is derived by hand from section 3 of the IETF Internet-Draft draft-hawkins-x402-dns-discovery-02 (22 Aug 2026, https://www.ietf.org/archive/id/draft-hawkins-x402-dns-discovery-02.txt, vendored in vendor/specs). Resource 'accepts' items follow x402 v2 PaymentRequirements (x402-specification-v2.md section 5.1.2, vendored). Unknown fields are allowed (draft: MUST be ignored).",
+  "title": "x402 discovery manifest (draft-hawkins-x402-dns-discovery-02)",
+  "type": "object",
+  "required": ["x402Version", "kind"],
+  "properties": {
+    "x402Version": {"type": "integer", "minimum": 1},
+    "kind": {"enum": ["facilitator", "resource-server", "both"]},
+    "name": {"type": "string"},
+    "description": {"type": "string"},
+    "facilitator": {"type": "object", "required": ["baseUrl", "endpoints", "kinds"]},
+    "resources": {"type": "array", "items": {
+      "type": "object", "required": ["url"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://"},
+        "method": {"type": "string"},
+        "description": {"type": "string"},
+        "accepts": {"type": "array", "items": {"$ref": "#/$defs/PaymentRequirements"}}
+      }}},
+    "attestation": {"type": "object", "required": ["type"]},
+    "updated": {"type": "string", "format": "date-time"}
+  },
+  "allOf": [{"if": {"properties": {"kind": {"enum": ["facilitator", "both"]}}}, "then": {"required": ["facilitator"]}}],
+  "$defs": {
+    "PaymentRequirements": {
+      "type": "object",
+      "required": ["scheme", "network", "amount", "asset", "payTo", "maxTimeoutSeconds"],
+      "properties": {
+        "scheme": {"type": "string"}, "network": {"type": "string", "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$"},
+        "amount": {"type": "string", "pattern": "^[0-9]+$"}, "asset": {"type": "string"}, "payTo": {"type": "string"},
+        "maxTimeoutSeconds": {"type": "number"}, "extra": {"type": "object"}
+      }
+    }
+  }
+}

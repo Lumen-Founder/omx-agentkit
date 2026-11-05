@@ -1,0 +1,68 @@
+{
+  "name": "OMX",
+  "description": "Non-custodial Hyperliquid execution for AI agents: mandate checks, unsigned orders, verifiable receipts",
+  "supportedInterfaces": [
+    {
+      "url": "https://omx.invalid/a2a",
+      "protocolBinding": "HTTP+JSON",
+      "protocolVersion": "1.0"
+    }
+  ],
+  "provider": {
+    "organization": "OMX",
+    "url": "https://omx.invalid"
+  },
+  "version": "0.0.1",
+  "documentationUrl": "https://omx.invalid/llms.txt",
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false
+  },
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "skills": [
+    {
+      "id": "omx_pretrade_quote",
+      "name": "Pre-trade quote",
+      "description": "Quantitative comparison of execution styles (market, limit, TWAP, POV, chase) for one order: expected cost in bps, fill probability, time to fill, and an omx_intent ready for OMX. No direction or profit advice.",
+      "tags": [
+        "hyperliquid",
+        "execution",
+        "tca"
+      ]
+    },
+    {
+      "id": "omx_mandate_check",
+      "name": "Mandate check",
+      "description": "Evaluate an Agent Trading Mandate (atm/0) against one order and return each control's decision.",
+      "tags": [
+        "risk",
+        "mandate",
+        "compliance"
+      ]
+    },
+    {
+      "id": "omx_build_order",
+      "name": "Build unsigned order",
+      "description": "Mandate check, then an unsigned Hyperliquid order with a disclosed builder fee and expiresAfter, plus the EIP-712 typed data the agent's own wallet signs.",
+      "tags": [
+        "hyperliquid",
+        "eip712",
+        "non-custodial"
+      ]
+    },
+    {
+      "id": "omx_submit_signed",
+      "name": "Assemble signed order",
+      "description": "Assemble the Hyperliquid /exchange payload from the agent's signature and check the signer.",
+      "tags": [
+        "hyperliquid",
+        "non-custodial"
+      ]
+    }
+  ]
+}

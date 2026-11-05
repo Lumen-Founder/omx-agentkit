@@ -1,0 +1,234 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OMX Pre-Trade API",
+    "version": "0.0.1",
+    "summary": "Non-custodial Hyperliquid execution for AI agents: mandate checks, unsigned orders, verifiable receipts",
+    "description": "Compares execution styles for one Hyperliquid order. Paid per call with x402 (0.01 USD, eip155:8453); free when computed by local OMX."
+  },
+  "servers": [
+    {
+      "url": "https://omx.invalid"
+    }
+  ],
+  "paths": {
+    "/v1/pretrade/quote": {
+      "post": {
+        "operationId": "omx_pretrade_quote",
+        "summary": "Quantitative execution-style comparison",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comparison",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required (x402 v2). The PAYMENT-REQUIRED header carries the requirements; retry with a PAYMENT-SIGNATURE header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRequired"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "QuoteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "coin",
+          "side",
+          "size"
+        ],
+        "properties": {
+          "coin": {
+            "type": "string",
+            "examples": [
+              "ETH"
+            ]
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "size": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Base units"
+          },
+          "styles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "market",
+                "limit",
+                "twap",
+                "pov",
+                "chase"
+              ]
+            }
+          },
+          "max_slippage_bps": {
+            "type": "number",
+            "minimum": 0
+          },
+          "horizon_s": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "StyleRow": {
+        "type": "object",
+        "required": [
+          "style",
+          "expected_cost_bps",
+          "fill_probability",
+          "expected_time_s"
+        ],
+        "properties": {
+          "style": {
+            "type": "string",
+            "enum": [
+              "market",
+              "limit",
+              "twap",
+              "pov",
+              "chase"
+            ]
+          },
+          "expected_cost_bps": {
+            "type": "number"
+          },
+          "cost_p90_bps": {
+            "type": "number"
+          },
+          "fill_probability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "expected_time_s": {
+            "type": "number",
+            "minimum": 0
+          },
+          "builder_fee_bps": {
+            "type": "number",
+            "minimum": 0
+          },
+          "omx_intent": {
+            "type": "object",
+            "description": "Ready to pass to OMX submit_order / omx_build_order"
+          }
+        }
+      },
+      "QuoteResponse": {
+        "type": "object",
+        "required": [
+          "coin",
+          "side",
+          "size",
+          "mid",
+          "data_ts_ms",
+          "comparison",
+          "disclaimer"
+        ],
+        "properties": {
+          "coin": {
+            "type": "string"
+          },
+          "side": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "mid": {
+            "type": "number"
+          },
+          "data_ts_ms": {
+            "type": "integer"
+          },
+          "comparison": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StyleRow"
+            }
+          },
+          "disclaimer": {
+            "type": "string",
+            "const": "Execution cost comparison only. No trade direction, signal or profit advice."
+          }
+        }
+      },
+      "PaymentRequired": {
+        "type": "object",
+        "required": [
+          "x402Version",
+          "accepts"
+        ],
+        "properties": {
+          "x402Version": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "accepts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "examples": [
+          {
+            "x402Version": 2,
+            "accepts": [
+              {
+                "scheme": "exact",
+                "network": "eip155:8453",
+                "amount": "10000",
+                "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "payTo": "UNSET-NOT-DEPLOYED",
+                "maxTimeoutSeconds": 60,
+                "extra": {
+                  "name": "USD Coin",
+                  "version": "2"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "x402Version": 2,
+  "kind": "resource-server",
+  "name": "OMX",
+  "description": "Non-custodial Hyperliquid execution for AI agents: mandate checks, unsigned orders, verifiable receipts",
+  "resources": [
+    {
+      "url": "https://omx.invalid/v1/pretrade/quote",
+      "method": "POST",
+      "description": "Quantitative comparison of execution styles (market, limit, TWAP, POV, chase) for one order: expected cost in bps, fill probability, time to fill, and an omx_intent ready for OMX. No direction or profit advice.",
+      "mimeType": "application/json",
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "amount": "10000",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "payTo": "UNSET-NOT-DEPLOYED",
+          "maxTimeoutSeconds": 60,
+          "extra": {
+            "name": "USD Coin",
+            "version": "2"
+          }
+        }
+      ]
+    }
+  ],
+  "attestation": {
+    "type": "none"
+  },
+  "docs": "https://omx.invalid/llms.txt",
+  "updated": "2026-11-05T00:00:00Z"
+}

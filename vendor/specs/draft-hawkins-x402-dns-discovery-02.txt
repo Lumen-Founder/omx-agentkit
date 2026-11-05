@@ -1,0 +1,840 @@
+
+
+
+
+Network Working Group                                  Walter D. Hawkins
+Internet-Draft                                               Independent
+Intended status: Informational                            22 August 2026
+Expires: 23 February 2027
+
+
+    Discovering x402 Payment Capability via DNS and a Well-Known URI
+                  draft-hawkins-x402-dns-discovery-02
+
+Abstract
+
+   x402 is an application-level protocol for internet-native payments
+   built on the HTTP 402 (Payment Required) status code.  This document
+   defines how a domain publishes its x402 payment capability out-of-
+   band, so that clients, autonomous agents, and indexers can discover
+   it without prior configuration or a central directory.  It specifies
+   a JSON capability manifest served at the well-known URI "/.well-
+   known/x402" and an optional DNS TXT record at the underscored node
+   name "_x402" that points to the manifest.  A consumer resolves a bare
+   domain name to verified x402 capability with at most one DNS query
+   and one HTTPS GET.
+
+About This Document
+
+   This note is to be removed before publishing as an RFC.
+
+   This document is a successor to the expired individual submission
+   draft-jeftovic-x402-dns-discovery-00, whose author is credited in the
+   Acknowledgments; an offer of co-authorship remains open.  Discussion
+   of this document takes place in the x402 Foundation community
+   (https://github.com/x402-foundation/x402), where a corresponding
+   extension specification is under review.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+
+
+
+Hawkins                 Expires 23 February 2027                [Page 1]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   This Internet-Draft will expire on 23 February 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Conventions and Definitions . . . . . . . . . . . . . . . . .   3
+   3.  The x402 Well-Known URI . . . . . . . . . . . . . . . . . . .   4
+     3.1.  Example . . . . . . . . . . . . . . . . . . . . . . . . .   4
+     3.2.  Field Semantics . . . . . . . . . . . . . . . . . . . . .   5
+   4.  The _x402 DNS TXT Record  . . . . . . . . . . . . . . . . . .   6
+   5.  Determining D from a Resource URL . . . . . . . . . . . . . .   8
+   6.  Resolution Algorithm  . . . . . . . . . . . . . . . . . . . .   9
+     6.1.  Fetch Bounds  . . . . . . . . . . . . . . . . . . . . . .   9
+     6.2.  Refusing Private Destinations . . . . . . . . . . . . . .  10
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  10
+   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  11
+     8.1.  Well-Known URI Registration . . . . . . . . . . . . . . .  11
+     8.2.  Underscored Node Name Registration  . . . . . . . . . . .  12
+   9.  Changes Since -01 . . . . . . . . . . . . . . . . . . . . . .  12
+   10. Implementation Status . . . . . . . . . . . . . . . . . . . .  13
+   11. Relationship to Prior Proposals . . . . . . . . . . . . . . .  13
+   12. References  . . . . . . . . . . . . . . . . . . . . . . . . .  13
+     12.1.  Normative References . . . . . . . . . . . . . . . . . .  14
+     12.2.  Informative References . . . . . . . . . . . . . . . . .  14
+   Acknowledgments . . . . . . . . . . . . . . . . . . . . . . . . .  15
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  15
+
+
+
+
+
+
+
+
+
+
+
+Hawkins                 Expires 23 February 2027                [Page 2]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+1.  Introduction
+
+   The x402 protocol [X402] makes payment terms self-describing at the
+   moment a client encounters an HTTP 402 response: the response body
+   enumerates acceptable payment schemes, networks, assets, and amounts.
+   What x402 does not define is how a client that has never contacted a
+   host learns that the host participates in x402 at all, in what role,
+   and with what capabilities.  In practice this gap has been filled by
+   hand-curated lists and directory sites, which rot, do not scale, and
+   centralize what is naturally edge-published data.
+
+   Electronic mail solved the same problem with DNS records (MX, SPF
+   [RFC7208], DMARC [RFC7489]), and most directly with MTA-STS
+   [RFC8461], in which an unauthenticated DNS TXT record points to an
+   authenticated HTTPS policy document.  This document applies that
+   pattern to x402:
+
+   *  A JSON capability manifest served over HTTPS at the well-known URI
+      [RFC8615] path "/.well-known/x402" is the authoritative, machine-
+      readable record of a host's x402 capability (Section 3).
+
+   *  An optional DNS TXT record at the underscored node name [RFC8552]
+      "_x402" is a lightweight pointer that lets a consumer discover
+      x402 capability from DNS alone, before making any HTTP request
+      (Section 4).
+
+   A consumer resolves a bare domain name to verified capability with at
+   most one DNS query and one HTTPS GET (Section 6).  Curated
+   directories become optional caches, regenerable by crawling, rather
+   than load-bearing infrastructure.
+
+2.  Conventions and Definitions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+   Facilitator:  A service that verifies and settles x402 payments on
+      behalf of resource servers, conventionally exposing "supported",
+      "verify", and "settle" endpoints.
+
+   Resource server:  An HTTP server that gates resources behind x402
+      payments.
+
+   Manifest:  The JSON document defined in Section 3.
+
+
+
+
+Hawkins                 Expires 23 February 2027                [Page 3]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   Consumer:  Any client, agent, crawler, or indexer that resolves x402
+      capability using this mechanism.
+
+3.  The x402 Well-Known URI
+
+   A host participating in x402 SHOULD serve a JSON [RFC8259] manifest
+   at:
+
+   https://<host>/.well-known/x402
+
+   The manifest MUST be served over HTTPS with media type "application/
+   json".  Cross-origin GET SHOULD be permitted; the manifest is public
+   data.  Hosts SHOULD serve the manifest with HTTP caching headers.
+
+3.1.  Example
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hawkins                 Expires 23 February 2027                [Page 4]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   {
+     "x402Version": 2,
+     "kind": "facilitator",
+     "name": "Example Facilitator",
+     "description": "One-line human description.",
+     "facilitator": {
+       "baseUrl": "https://pay.example.com",
+       "endpoints": {
+         "supported": "/supported",
+         "verify": "/verify",
+         "settle": "/settle"
+       },
+       "kinds": [
+         { "x402Version": 2, "scheme": "exact",
+           "network": "eip155:114" }
+       ],
+       "assets": [
+         {
+           "network": "eip155:114",
+           "address": "0x1F930B6A9F68c91aB23db07a9c4A5Dc166eF8011",
+           "symbol": "EXUSD",
+           "decimals": 6,
+           "standard": "EIP-3009"
+         }
+       ]
+     },
+     "resources": [
+       {
+         "url": "https://pay.example.com/demo/card",
+         "method": "POST",
+         "description": "x402-paywalled demo resource"
+       }
+     ],
+     "attestation": { "type": "none" },
+     "docs": "https://pay.example.com/",
+     "contact": "ops@example.com",
+     "updated": "2026-08-04T00:00:00Z"
+   }
+
+3.2.  Field Semantics
+
+   x402Version (REQUIRED):  Highest x402 protocol version the host
+      speaks.
+
+   kind (REQUIRED):  One of "facilitator", "resource-server", or "both".
+
+   name, description (RECOMMENDED):  Human-readable identification.
+
+
+
+
+Hawkins                 Expires 23 February 2027                [Page 5]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   facilitator (REQUIRED when kind includes facilitator):  Capability
+      block for the facilitator role.
+
+   facilitator.baseUrl (REQUIRED):  HTTPS base URL of the facilitator
+      API.  It MUST be on the same domain as, or a subdomain of, the
+      host serving the manifest, and consumers MUST reject manifests
+      that violate this.  Without this rule a host can name someone
+      else's facilitator as its own and turn every conforming crawler
+      into a request amplifier aimed at a third party.
+
+   facilitator.endpoints (REQUIRED):  Relative paths for the
+      supported/verify/settle endpoints.  Deployments differ; consumers
+      do not guess.
+
+   facilitator.kinds (REQUIRED):  A mirror of the live "supported"
+      endpoint.  Divergence between the manifest and the live endpoint
+      is a misconfiguration; consumers MUST prefer the live endpoint
+      (Section 6).
+
+   facilitator.assets (RECOMMENDED):  Settleable assets per network,
+      with the token standard each scheme relies on.
+
+   resources (OPTIONAL):  x402-gated resources on this host.  Each "url"
+      MUST be HTTPS and on the manifest's own domain or a subdomain.
+      Consumers MUST NOT dereference entries that are not, and SHOULD
+      treat their presence as an abuse signal.  Because this document
+      invites indexers to fetch these URLs, an unconstrained field would
+      constitute server-side request forgery by specification: a host
+      listing an internal or link-local address would have every
+      conforming crawler dereference it from inside the crawler's own
+      network.
+
+   attestation (OPTIONAL):  Execution-integrity claims, e.g.
+      {"type":"none"} or
+      {"type":"tee","scheme":"...","verifier":"<url>"}. See Section 7.
+
+   updated (RECOMMENDED):  Timestamp [RFC3339] of the last manifest
+      change, used for cache decisions alongside HTTP caching headers.
+
+   Unknown fields MUST be ignored, for forward compatibility.
+
+4.  The _x402 DNS TXT Record
+
+   A domain MAY additionally publish a TXT record [RFC1035] at the
+   underscored node name "_x402" [RFC8552]:
+
+
+
+
+
+
+Hawkins                 Expires 23 February 2027                [Page 6]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   _x402.example.com. IN TXT ( "v=x402-1; "
+     "wk=https://pay.example.com/.well-known/x402; "
+     "k=facilitator; net=eip155:114; scheme=exact" )
+
+   The RDATA is a single character-string sequence interpreted as
+   semicolon-separated key=value pairs, order-insensitive:
+
+   A TXT record longer than 255 octets is carried as multiple character-
+   strings [RFC1035], as the example above is.  Consumers MUST
+   concatenate the character-strings of a record with no separator, and
+   MUST NOT insert whitespace between them, before parsing the result.
+   SPF [RFC7208] fixes the same rule for the same reason.  Without it
+   two conformant implementations reading identical bytes derive
+   different "wk" URLs -- one joining with the empty string and one with
+   a space -- and therefore disagree about where a domain's manifest
+   lives, with neither able to detect the disagreement.  Character-
+   strings MUST NOT be reordered; the concatenation is in wire order.
+
+   The failure is easy to miss in testing.  Where a split happens to
+   fall on a "; " boundary, a space-joining consumer still parses the
+   record correctly, because the surrounding whitespace is trimmed.  The
+   divergence appears only when the 255-octet boundary falls inside a
+   key or a value -- which is precisely the case the publisher does not
+   choose and cannot see.  An implementation with the wrong joiner
+   passes every hand-written example and fails on the first record long
+   enough for DNS to split it somewhere inconvenient, resolving "wk" to
+   a host the publisher never named.
+
+   v (REQUIRED):  The record format version.  This document defines
+      "x402-1".
+
+   wk (REQUIRED):  Absolute HTTPS URL of the manifest.  It MUST be on
+      the publishing domain or a subdomain of it (see Section 7).
+
+   k (RECOMMENDED):  "facilitator", "resource-server", or "both" -- a
+      coarse filter so crawlers can skip fetches.
+
+   net (OPTIONAL):  Comma-separated network identifiers (coarse filter
+      only).
+
+   scheme (OPTIONAL):  Comma-separated scheme names (coarse filter
+      only).
+
+
+
+
+
+
+
+
+
+Hawkins                 Expires 23 February 2027                [Page 7]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   A domain MUST publish at most one record with "v=x402-1" at a given
+   owner name.  Consumers that find more than one MUST treat the name as
+   unresolvable rather than choosing between them: "first record wins"
+   is a race that anyone able to add a single TXT record can win by
+   ordering -- a shared DNS control panel, a delegated subdomain, a
+   partial compromise.  SPF [RFC7208] and DMARC [RFC7489] both make
+   duplicate records a hard error for precisely this reason.
+
+   The TXT record is a pointer, not an authority: all capability data
+   comes from the manifest, which is retrieved over HTTPS.  This split
+   -- unauthenticated DNS pointer to authenticated HTTPS policy -- is
+   the MTA-STS [RFC8461] pattern, and it keeps the mechanism useful even
+   where DNSSEC [RFC4033] is absent.
+
+   Hosts without control of their DNS (for example, hosts on platform-
+   assigned subdomains) simply publish the manifest alone; resolution
+   step 2 below still finds them.
+
+5.  Determining D from a Resource URL
+
+   Revision -01 specified the record at "_x402.D" without saying how a
+   consumer holding a RESOURCE URL determines D.  That omission is not
+   theoretical.  A survey of 1,609 hosts listed in a public x402
+   catalogue on 2026-08-22 queried "_x402.<exact-host>" and recorded
+   this document's own author as publishing nothing: the record is at
+   the apex, and its "wk" target is a service subdomain.  Publishing at
+   the apex is the natural arrangement for an operator with one DNS zone
+   and several service hosts, so the narrow reading makes a conforming
+   publisher invisible.
+
+   Consumers therefore MUST query the resource host first, and MAY then
+   query ancestor names, nearest first, stopping at the first name that
+   yields a usable record.  Implementations SHOULD bound this at two
+   ancestors and MUST NOT query a name of fewer than two labels.
+
+   An ancestor's record introduces a hazard that the narrow reading did
+   not have.  Under a shared hosting suffix the ancestor is controlled
+   by the platform rather than the tenant, so a single record would
+   otherwise make every name beneath it discoverable — including tenants
+   that published nothing and names that do not resolve at all.  The
+   same survey confirmed this against the author's own zone: an invented
+   subdomain inherited the apex record.
+
+   Accordingly, a manifest obtained from an ancestor name A applies to a
+   host H (where H is A or a subdomain of A) ONLY if the manifest itself
+   references H, in "facilitator.baseUrl" or in an entry of "resources".
+   A referenced URL counts only when its host is itself A or a subdomain
+   of A.  If the manifest does not reference H, the consumer MUST treat
+
+
+
+Hawkins                 Expires 23 February 2027                [Page 8]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   discovery as having failed for H rather than attributing the
+   ancestor's capability to it.  A manifest retrieved from H itself
+   always applies to H.
+
+   This rule deliberately avoids depending on a public suffix list.
+   Such a list is a mutable external dependency, it does not agree with
+   operational reality for privately delegated suffixes, and an error in
+   it converts silently into a false claim that a host is discoverable.
+   Requiring the zone operator to name the host is a positive statement
+   by the only party in a position to make it.
+
+6.  Resolution Algorithm
+
+   Given a domain name D determined per Section 5, a consumer resolves
+   x402 capability as follows:
+
+   1.  Query TXT for "_x402.D".  If a record with "v=x402-1" exists,
+       fetch the manifest from its "wk" URL, rejecting non-HTTPS or out-
+       of-domain URLs.  Consumers MUST re-apply the in-domain constraint
+       to every redirect hop and report the final URL as the manifest
+       source.  Checking only the requested URL validates a location the
+       bytes need not have come from: an in-domain "wk" URL that
+       redirects off-domain would otherwise pass, defeating the one
+       control the (unauthenticated) DNS layer has.  Redirect chains
+       SHOULD be bounded.
+
+   2.  Otherwise, attempt GET on "https://D/.well-known/x402".
+
+   3.  Validate the manifest shape; ignore unknown fields.
+
+   4.  Before using a facilitator, fetch the live "supported" endpoint
+       given by baseUrl and endpoints.supported, and treat the live
+       response as authoritative over the manifest's "kinds" array.
+
+   Steps 1-2 answer "does this domain speak x402, and in what role" with
+   at most one DNS query and one HTTP GET.  Indexers crawl the same way
+   and SHOULD periodically re-verify records.
+
+6.1.  Fetch Bounds
+
+   Consumers MUST bound the manifest fetch with a request timeout and a
+   maximum response size.  An unbounded read is a denial of service
+   handed to anyone who can publish a TXT record: a hostile host serves
+   an arbitrarily large body, or trickles bytes indefinitely, and the
+   crawler exhausts memory or hangs.  Size limits MUST be applied to the
+   bytes actually received, not to the Content-Length header, which is
+   the server's claim rather than a measurement.  (One deployed
+   implementation uses a 256 KiB size cap, a 10-second deadline, and at
+
+
+
+Hawkins                 Expires 23 February 2027                [Page 9]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   most 3 redirect hops.)
+
+6.2.  Refusing Private Destinations
+
+   Before every fetch this document invites -- the manifest, each
+   redirect hop, resources[] probes, and the live "supported" cross-
+   check -- a consumer MUST refuse a URL whose host is, or resolves to,
+   a loopback, link-local, or private-range address.  The HTTPS and in-
+   domain rules do not cover this case: the publisher controls their own
+   DNS, so an in-domain hostname can resolve to a link-local metadata
+   address or an address inside the crawler's network, and DNS-based
+   certificate issuance grants valid certificates to names that never
+   point anywhere public.  The check MUST be re-applied on every
+   redirect hop; a public first hop redirecting to an internal name is
+   the classic bypass.  Resolution-time checks remain subject to DNS
+   rebinding between check and connect; consumers needing a stronger
+   guarantee SHOULD pin the resolved address for the connection.
+   Deployments intentionally operating on private networks MAY relax
+   this rule, explicitly.
+
+7.  Security Considerations
+
+   Discovery is not endorsement.  A manifest proves that a host claims a
+   capability; it transfers no trust.  Clients MUST validate settlement
+   the way the x402 protocol already requires, and SHOULD apply their
+   own reputation or allowlist policy on top of discovery.
+
+   DNS spoofing: the TXT record is unauthenticated without DNSSEC.  That
+   is why it may only point into the same domain, and why the manifest
+   -- served under the domain's TLS certificate -- is the authority.  An
+   attacker who can forge the TXT record but not the domain's HTTPS
+   gains nothing.
+
+   The same-origin constraint on "wk" prevents a domain from claiming
+   another operator's facilitator as its own, and prevents the record
+   from being used as an open redirect for crawler traffic.  This holds
+   only if consumers enforce it on every redirect hop and on
+   facilitator.baseUrl, not on the requested URL alone.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hawkins                 Expires 23 February 2027               [Page 10]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   Servers MUST NOT derive manifest URLs from request-controlled input.
+   A manifest endpoint that builds its own baseUrl or resource URLs from
+   the Host or X-Forwarded-Host request headers lets any caller make the
+   document -- served under the operator's own TLS certificate --
+   advertise an attacker's host, and a cacheable response without a
+   matching Vary header can then be replayed to other consumers.  The
+   public origin MUST be pinned in configuration.  This is the same
+   attack the "wk" rule addresses, arriving on the side this document
+   calls authoritative, and it is easy to introduce precisely because
+   deriving the origin from the request looks like good hygiene.
+
+   DNSSEC upgrades the TXT record from a hint to an assertion.
+   Unsigned, the record is a convenience that the HTTPS manifest must
+   backstop.  Signed, a validating resolver can prove the record was not
+   tampered with.  Operators SHOULD sign zones carrying "_x402" records
+   and SHOULD monitor RRSIG expiry: an expired signature fails
+   validation exactly like a forged one, so the record -- and the
+   discovery path -- disappears on a timer.
+
+   Manifest/live divergence: consumers MUST prefer live "supported" data
+   over the manifest's mirror of it; indexers SHOULD flag divergent
+   hosts.
+
+   Attestation claims in the manifest are claims like everything else:
+   an execution-integrity attestation is only meaningful if the verifier
+   URL lets the client independently check an attestation token chain
+   against a published, reproducible build.  Absent such verification,
+   consumers treat the attestation as absent.
+
+   Crawler load: manifests are static JSON; hosts SHOULD serve them with
+   cache headers and rate-limit them as any public endpoint.
+
+8.  IANA Considerations
+
+8.1.  Well-Known URI Registration
+
+   IANA is requested to register the following entry in the "Well-Known
+   URIs" registry defined by [RFC8615]:
+
+   URI Suffix:  x402
+
+   Change Controller:  Walter D.  Hawkins <wdhawkins46@gmail.com>
+
+   Reference:  This document
+
+   Status:  provisional
+
+
+
+
+
+Hawkins                 Expires 23 February 2027               [Page 11]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   Two corrections to the request made in revision -01 of this document,
+   both of the author's own making.
+
+   That revision named IETF as the change controller.  [RFC8615],
+   Section 3.1 states: "For Standards Track RFCs, state 'IETF'.  For
+   others, give the name of the responsible party."  This document is an
+   individual submission and is not a Standards Track RFC, so the
+   responsible party is the author, and the earlier entry asserted an
+   institutional change control that does not exist.
+
+   That revision also requested permanent status.  [RFC8615],
+   Section 3.1 reserves permanent status for values "defined by
+   Standards Track RFCs and other open standards", and directs that
+   "other values should be registered as 'provisional'".  Provisional is
+   the correct status for this registration, and provisional entries may
+   be removed by the experts if they are found not to be in use — an
+   outcome the author accepts as appropriate for a suffix that has not
+   yet been shown to be widely deployed.
+
+   The suffix registered here is the name of a payment protocol
+   developed elsewhere.  Should the x402 project, or a body acting on
+   its behalf, wish to assume change control of this registration, the
+   author will support that reassignment; nothing in this document is
+   intended to claim authority over the protocol's name.
+
+8.2.  Underscored Node Name Registration
+
+   IANA has registered the following entry in the "Underscored and
+   Globally Scoped DNS Node Names" registry defined by [RFC8552].  The
+   allocation was made on 2026-08-11 and is recorded here for
+   completeness; no further action is requested.
+
+   RR Type:  TXT
+
+   _NODE NAME:  _x402
+
+   Reference:  This document
+
+9.  Changes Since -01
+
+   This section is to be removed before publishing as an RFC.
+
+   *  Well-Known URI Registration: corrected the change controller from
+      IETF to the author.  An individual submission cannot name IETF as
+      change controller ([RFC8615], Section 3.1).
+
+   *  Well-Known URI Registration: changed the requested status from
+      permanent to provisional, per the same section.
+
+
+
+Hawkins                 Expires 23 February 2027               [Page 12]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   *  Well-Known URI Registration: added a statement that change control
+      of the suffix may be reassigned to the x402 project or a body
+      acting on its behalf.
+
+   *  Underscored Node Name Registration: the node name _x402 was
+      allocated by IANA on 2026-08-11; the section now records the
+      completed registration rather than requesting it.
+
+   *  New section: "Determining D from a Resource URL".  Revision -01
+      never said which name a consumer holding a resource URL should
+      query.  Adds the host-then-ancestor order, and the rule that an
+      ancestor's manifest applies to a host only if it names that host —
+      without which a shared-hosting platform's record would vouch for
+      every tenant beneath it.
+
+10.  Implementation Status
+
+   This section is to be removed before publishing as an RFC.
+
+   This section records the status of known implementations per
+   [RFC7942].
+
+   *  A zero-dependency resolver implementing the full algorithm of
+      Section 6, including redirect re-validation, fetch bounds, and
+      private-destination refusal, is deployed and exercises live
+      "_x402" records published on the author's production domains,
+      resolving end-to-end from bare domain name to live capability
+      endpoint.
+
+   *  A corresponding extension specification is under review in the
+      x402 Foundation repository (x402-foundation/x402, pull request
+      2979), with a live manifest served by a public facilitator
+      deployment.
+
+11.  Relationship to Prior Proposals
+
+   DNS-based and well-known-URI-based discovery for x402 has been
+   proposed independently several times in the x402 community, most
+   completely in [JEFTOVIC], which used the same "_x402" TXT label and
+   substantially the same resolution approach.  That document expired
+   without revision in May 2026.  This document is offered as a
+   successor that consolidates those proposals and adds the manifest
+   schema, duplicate-record rule, redirect and private-destination
+   constraints, and IANA registrations.  Co-authorship remains open to
+   the authors of the prior proposals.
+
+12.  References
+
+
+
+
+Hawkins                 Expires 23 February 2027               [Page 13]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+12.1.  Normative References
+
+   [RFC1035]  Mockapetris, P., "Domain names - implementation and
+              specification", STD 13, RFC 1035, DOI 10.17487/RFC1035,
+              November 1987, <https://www.rfc-editor.org/info/rfc1035>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC3339]  Klyne, G. and C. Newman, "Date and Time on the Internet:
+              Timestamps", RFC 3339, DOI 10.17487/RFC3339, July 2002,
+              <https://www.rfc-editor.org/info/rfc3339>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8259]  Bray, T., Ed., "The JavaScript Object Notation (JSON) Data
+              Interchange Format", STD 90, RFC 8259,
+              DOI 10.17487/RFC8259, December 2017,
+              <https://www.rfc-editor.org/info/rfc8259>.
+
+   [RFC8552]  Crocker, D., "Scoped Interpretation of DNS Resource
+              Records through "Underscored" Naming of Attribute Leaves",
+              BCP 222, RFC 8552, DOI 10.17487/RFC8552, March 2019,
+              <https://www.rfc-editor.org/info/rfc8552>.
+
+   [RFC8615]  Nottingham, M., "Well-Known Uniform Resource Identifiers
+              (URIs)", RFC 8615, DOI 10.17487/RFC8615, May 2019,
+              <https://www.rfc-editor.org/info/rfc8615>.
+
+12.2.  Informative References
+
+   [JEFTOVIC] Jeftovic, M. E., "Discovering x402 Resources via DNS TXT
+              Records", Work in Progress, expired Internet-Draft,
+              November 2025, <https://datatracker.ietf.org/doc/draft-
+              jeftovic-x402-dns-discovery/>.
+
+   [RFC4033]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "DNS Security Introduction and Requirements",
+              RFC 4033, DOI 10.17487/RFC4033, March 2005,
+              <https://www.rfc-editor.org/info/rfc4033>.
+
+
+
+
+
+
+
+Hawkins                 Expires 23 February 2027               [Page 14]
+
+Internet-Draft             x402 DNS Discovery                August 2026
+
+
+   [RFC7208]  Kitterman, S., "Sender Policy Framework (SPF) for
+              Authorizing Use of Domains in Email, Version 1", RFC 7208,
+              DOI 10.17487/RFC7208, April 2014,
+              <https://www.rfc-editor.org/info/rfc7208>.
+
+   [RFC7489]  Kucherawy, M., Ed. and E. Zwicky, Ed., "Domain-based
+              Message Authentication, Reporting, and Conformance
+              (DMARC)", RFC 7489, DOI 10.17487/RFC7489, March 2015,
+              <https://www.rfc-editor.org/info/rfc7489>.
+
+   [RFC7942]  Sheffer, Y. and A. Farrel, "Improving Awareness of Running
+              Code: The Implementation Status Section", BCP 205,
+              RFC 7942, DOI 10.17487/RFC7942, July 2016,
+              <https://www.rfc-editor.org/info/rfc7942>.
+
+   [RFC8461]  Margolis, D., Risher, M., Ramakrishnan, B., Brotman, A.,
+              and J. Jones, "SMTP MTA Strict Transport Security (MTA-
+              STS)", RFC 8461, DOI 10.17487/RFC8461, September 2018,
+              <https://www.rfc-editor.org/info/rfc8461>.
+
+   [X402]     x402 Foundation, "x402: An Open Standard for Internet-
+              Native Payments", 2026,
+              <https://github.com/x402-foundation/x402>.
+
+Acknowledgments
+
+   Mark E.  Jeftovic proposed "_x402" TXT-record discovery for x402
+   first, in [JEFTOVIC] and in x402 community discussion; this document
+   deliberately builds on that work, and the offer to fold this text
+   into a revision of his draft -- or to add him as co-author here --
+   stands.  The authors of the other independent discovery proposals in
+   the x402 community (repository issues 1348, 2582, and 2831) reached
+   similar designs and are acknowledged likewise.  Reviewers on x402
+   Foundation pull request 2979 materially improved the security
+   considerations, in particular the redirect re-validation and
+   duplicate-record rules.
+
+Author's Address
+
+   Walter D. Hawkins
+   Independent
+   Email: wdhawkins46@gmail.com
+
+
+
+
+
+
+
+
+
+Hawkins                 Expires 23 February 2027               [Page 15]
